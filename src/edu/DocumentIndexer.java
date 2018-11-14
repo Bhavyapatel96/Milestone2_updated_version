@@ -45,7 +45,6 @@ import javax.swing.JOptionPane;
 public class DocumentIndexer {
 
     protected static DocumentCorpus corpus;
-    private static Index index;
     protected static String query;
     protected static List<Posting> postings = new ArrayList<>();
     protected static Boolean clickList = false;  //prevents clicking the list when there is nothing to click
@@ -55,6 +54,8 @@ public class DocumentIndexer {
     private static double N = 0; //corpus size
     private static String path; 
     protected static int rankedOption = 0; 
+    private static DiskPositionalIndex Disk_posIndex; 
+    private static DiskIndexWriter diskWriter = new DiskIndexWriter();
     
     
     /**
@@ -65,31 +66,41 @@ public class DocumentIndexer {
      * GUI.SearchDirectoriesButtonActionPerformed
      *
      */
-    protected static void startIndexing(Path p) throws ClassNotFoundException, InstantiationException, IllegalAccessException, IOException {
+    protected static void startIndexing(Path p, int option) throws ClassNotFoundException, InstantiationException, IllegalAccessException, IOException {
         
         path = p.toString();
+        corpus = DirectoryCorpus.loadTextDirectory(p.toAbsolutePath(), ".txt");// To run .txt files
+        //corpus = DirectoryCorpus.loadJsonTextDirectory(p.toAbsolutePath(), ".json");
         
-        //corpus = DirectoryCorpus.loadTextDirectory(p.toAbsolutePath(), ".txt");// To run .txt files
-        corpus = DirectoryCorpus.loadJsonTextDirectory(p.toAbsolutePath(), ".json");
-        
-        long startTime = System.nanoTime();
-        index = posindexCorpus(corpus);
-        long endTime = System.nanoTime();
-        
-        long elapsedTime = (endTime - startTime);
-        double seconds = (double) elapsedTime / 1000000000.0;
-        GUI.ResultsLabel.setText("Total Indexing Time: " + new DecimalFormat("##.##").format(seconds) + " seconds");
+       if(option == 0){ //build index
 
+
+           long startTime = System.nanoTime();
+           Index index = posindexCorpus(corpus);
+           diskWriter.WriteIndex(index, path);
+           Disk_posIndex = new DiskPositionalIndex(path);
+           long endTime = System.nanoTime();
+
+           long elapsedTime = (endTime - startTime);
+           double seconds = (double) elapsedTime / 1000000000.0;
+           GUI.ResultsLabel.setText("Total Indexing Time: " + new DecimalFormat("##.##").format(seconds) + " seconds");
+           
+
+
+       }else{ //query index
+           Disk_posIndex = new DiskPositionalIndex(path);
+           corpus.getDocuments();
+           N= corpus.getCorpusSize();
+       }
+       
+            
+        
+        
     }
 
     
     protected static void startSearchEngine() throws ClassNotFoundException, InstantiationException, IllegalAccessException, IOException {
-       
-        DiskIndexWriter diskWriter= new DiskIndexWriter();
-        diskWriter.WriteIndex(index,path);
-        DiskPositionalIndex Disk_posIndex = new DiskPositionalIndex(path);
-        
-        
+
         if (booleanMode){
             BooleanQueryMode(diskWriter, Disk_posIndex); 
         }
@@ -138,6 +149,8 @@ public class DocumentIndexer {
                 GUI.ResultsLabel.setText("");
 
                 for (Posting p : postings) {
+                    System.out.println("p doc id: " + p.getDocumentId());
+                    System.out.println("corpus doc: " + p.getDocumentId());  
                     docInfo = corpus.getDocument(p.getDocumentId()).getTitle();
                     GUI.JListModel.addElement(docInfo);
 
@@ -284,7 +297,7 @@ public class DocumentIndexer {
      * @throws IllegalAccessException
      */
     private static Positional_inverted_index posindexCorpus(DocumentCorpus corpus) throws ClassNotFoundException, InstantiationException, IllegalAccessException, FileNotFoundException, IOException {
-
+        N = 0; 
         NewTokenProcessor processor = new NewTokenProcessor();
         Iterable<Document> docs = corpus.getDocuments(); //call registerFileDocumentFactory first?
         
@@ -295,8 +308,8 @@ public class DocumentIndexer {
         
         // Iterate through the documents, and:
         for (Document d : docs) {
-            //File f = new File(path + "\\" + d.getTitle());
-            File f=new File(path+"\\"+d.getFileName().toString());
+            File f = new File(path + "\\" + d.getTitle());
+            //File f=new File(path+"\\"+d.getFileName().toString()); //json
             double Filesize = f.length(); 
             //edited by bhavya
             double doc_weight=0; //first entry in docweights.bin
@@ -409,17 +422,17 @@ public class DocumentIndexer {
             }
 
         } else if (subqueries[0].equals("vocab")) {
-            List<String> vocabList = index.getVocabulary();
+            //List<String> vocabList = index.getVocabulary();
             GUI.JListModel.clear();
             GUI.ResultsLabel.setText("");
 
             int vocabCount = 0;
-            for (String v : vocabList) {
+            /*for (String v : vocabList) {
                 if (vocabCount < 1000) {
                     vocabCount++;
                     GUI.JListModel.addElement(v);
                 }
-            }
+            }*/
             GUI.ResultsLabel.setText("Total size of vocabulary: " + vocabCount);
             return true;
         }
@@ -441,7 +454,7 @@ public class DocumentIndexer {
             JOptionPane.showOptionDialog(GUI.indexingCorpusMessage, "Indexing corpus please wait", "Indexing Corpus", javax.swing.JOptionPane.DEFAULT_OPTION, javax.swing.JOptionPane.INFORMATION_MESSAGE, null, null, null);
             GUI.JListModel.clear();
             GUI.ResultsLabel.setText("Indexing");
-            startIndexing(Paths.get(subqueries[1]));
+            startIndexing(Paths.get(subqueries[1]), 0);
             GUI.SearchBarTextField.setText("Enter a new search or 'q' to exit");
 
             return true;

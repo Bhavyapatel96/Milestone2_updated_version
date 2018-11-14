@@ -250,7 +250,56 @@ public class DiskPositionalIndex implements Index {
 
     @Override
     public List<String> getVocabulary() {
-        return null;
+        InputStream f = null;
+        RandomAccessFile vt = null; 
+        RandomAccessFile v = null; 
+        List<String> results = new ArrayList();
+        
+
+            
+        try {
+            f = new FileInputStream(vocab);
+            vt = new RandomAccessFile(vocTable, "r");
+            v = new RandomAccessFile(vocab, "r");
+        } catch (FileNotFoundException ex) {
+            Logger.getLogger(DiskPositionalIndex.class.getName()).log(Level.SEVERE, null, ex);
+        }
+
+        String term = "";
+        long current;
+        long next;
+
+        while(true){
+            try {
+                current = vt.readLong(); //give starting position of term
+
+                vt.readLong(); //skips over posting list
+
+                next = vt.readLong();
+
+                //length of the string
+                long length = next - current;
+                //vocab.bin at pos m
+
+                v.seek(current);
+                
+                while (length > 0) {
+                    term += (char) (v.readUnsignedByte());
+                    length--;
+                }
+                results.add(term); 
+            }catch (EOFException e) {
+                break;
+            } catch (IOException ex) {
+                Logger.getLogger(DiskPositionalIndex.class.getName()).log(Level.SEVERE, null, ex);
+            }
+            
+        }
+        
+        
+
+        
+        return results;
     }
 
     public long binarysearch(String term) throws FileNotFoundException, IOException {
