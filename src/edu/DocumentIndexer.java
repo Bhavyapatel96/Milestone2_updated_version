@@ -69,8 +69,8 @@ public class DocumentIndexer {
         
         path = p.toString();
         
-        corpus = DirectoryCorpus.loadTextDirectory(p.toAbsolutePath(), ".txt");// To run .txt files
-        //corpus = DirectoryCorpus.loadJsonTextDirectory(p.toAbsolutePath(), ".json");
+        //corpus = DirectoryCorpus.loadTextDirectory(p.toAbsolutePath(), ".txt");// To run .txt files
+        corpus = DirectoryCorpus.loadJsonTextDirectory(p.toAbsolutePath(), ".json");
         
         long startTime = System.nanoTime();
         index = posindexCorpus(corpus);
@@ -119,7 +119,7 @@ public class DocumentIndexer {
             QueryComponent qComponent = bParser.parseQuery(query);
             postings = qComponent.getPostings(disk_posIndex);
 
-            if (postings.isEmpty()) 
+            if (postings.size()==0) 
             {
                 GUI.JListModel.clear();
                 GUI.ResultsLabel.setText("");
@@ -295,7 +295,8 @@ public class DocumentIndexer {
         
         // Iterate through the documents, and:
         for (Document d : docs) {
-            File f = new File(path + "\\" + d.getTitle());
+            //File f = new File(path + "\\" + d.getTitle());
+            File f=new File(path+"\\"+d.getFileName().toString());
             double Filesize = f.length(); 
             //edited by bhavya
             double doc_weight=0; //first entry in docweights.bin
